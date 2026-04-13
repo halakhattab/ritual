@@ -1,6 +1,12 @@
-# ritual.
+# Ritual — Daily Intention Generator
 
-A Daily Intention Generator — answer three questions, receive a personalized intention and curated ritual plan for your day.
+> An AI-powered wellness app that generates personalized daily intentions 
+> and ritual plans based on your mood and needs.
+
+**Built by [Hala Khattab](https://www.linkedin.com/in/hala-khattab-8b28442b)**  
+🌐 **[Live Site](https://ritual.pages.dev)**
+
+---
 
 ## Stack
 
