@@ -15,16 +15,15 @@ export default function ProgressDots({ step }) {
           key={n}
           animate={{
             backgroundColor: step === n ? '#9B7540' : 'transparent',
-            borderColor: step === n ? '#9B7540' : '#9B754080',
-            scale: step === n ? 1.15 : 1,
+            borderColor: step === n ? '#9B7540' : '#9B754060',
+            width: step === n ? 10 : 6,
+            height: step === n ? 10 : 6,
           }}
-          transition={{ duration: 0.3 }}
+          transition={{ type: 'spring', stiffness: 320, damping: 22 }}
           style={{
-            width: 7,
-            height: 7,
             borderRadius: '50%',
             border: '1.5px solid',
-            borderColor: '#9B754080',
+            borderColor: '#9B754060',
           }}
         />
       ))}

@@ -41,7 +41,7 @@ export default function LoadingScreen() {
           gap: '16px',
         }}
       >
-        {/* Pulsing gold line */}
+        {/* Breathing gold progress line */}
         <div style={{ position: 'relative', width: 120, height: 2 }}>
           <div
             style={{
@@ -52,21 +52,21 @@ export default function LoadingScreen() {
             }}
           />
           <motion.div
-            animate={{ x: ['0%', '100%', '0%'] }}
+            animate={{
+              scaleX: [0.12, 1, 0.12],
+              opacity: [0.5, 1, 0.5],
+            }}
             transition={{
-              duration: 2,
+              duration: 1.8,
               ease: 'easeInOut',
               repeat: Infinity,
             }}
             style={{
               position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '40%',
-              height: '100%',
-              background:
-                'linear-gradient(90deg, transparent, #9B7540, transparent)',
+              inset: 0,
+              background: '#9B7540',
               borderRadius: 1,
+              transformOrigin: 'center',
             }}
           />
         </div>

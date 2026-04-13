@@ -2,16 +2,27 @@ import { useRef } from 'react'
 import { motion } from 'framer-motion'
 import Wordmark from './Wordmark'
 
-const fadeUp = (delay = 0) => ({
-  initial: { opacity: 0, y: 24 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.7, delay, ease: [0.25, 0.1, 0.25, 1] },
-})
+const wordContainer = {
+  animate: {
+    transition: { staggerChildren: 0.04, delayChildren: 0.3 },
+  },
+}
+
+const wordVariant = {
+  initial: { opacity: 0, y: 10 },
+  animate: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.4, ease: 'easeOut' },
+  },
+}
 
 function RitualCard({ timeLabel, name, description, delay }) {
   return (
     <motion.div
-      {...fadeUp(delay)}
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.7, delay, ease: [0.25, 0.1, 0.25, 1] }}
       style={{
         flex: 1,
         minWidth: 0,
@@ -21,8 +32,25 @@ function RitualCard({ timeLabel, name, description, delay }) {
         display: 'flex',
         flexDirection: 'column',
         gap: '10px',
+        position: 'relative',
+        overflow: 'hidden',
       }}
     >
+      {/* Gold top border animating from 0 → 100% width */}
+      <motion.div
+        initial={{ scaleX: 0 }}
+        animate={{ scaleX: 1 }}
+        transition={{ duration: 0.5, delay: delay + 0.15, ease: 'easeOut' }}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 2,
+          background: '#9B7540',
+          transformOrigin: 'left',
+        }}
+      />
       <p
         style={{
           fontFamily: "'DM Sans', sans-serif",
@@ -181,7 +209,9 @@ export default function RevealScreen({ result, onReset, cooldown }) {
       >
         {/* Label */}
         <motion.p
-          {...fadeUp(0.1)}
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, delay: 0.1, ease: [0.25, 0.1, 0.25, 1] }}
           style={{
             fontFamily: "'DM Sans', sans-serif",
             fontSize: '0.7rem',
@@ -207,9 +237,11 @@ export default function RevealScreen({ result, onReset, cooldown }) {
           }}
         />
 
-        {/* Intention */}
+        {/* Intention — word by word stagger */}
         <motion.p
-          {...fadeUp(0.3)}
+          variants={wordContainer}
+          initial="initial"
+          animate="animate"
           style={{
             fontFamily: "'Cormorant Garamond', serif",
             fontStyle: 'italic',
@@ -221,10 +253,18 @@ export default function RevealScreen({ result, onReset, cooldown }) {
             maxWidth: 760,
           }}
         >
-          {result.intention}
+          {result.intention.split(' ').map((word, i) => (
+            <motion.span
+              key={i}
+              variants={wordVariant}
+              style={{ display: 'inline-block', marginRight: '0.28em' }}
+            >
+              {word}
+            </motion.span>
+          ))}
         </motion.p>
 
-        {/* Ritual Cards */}
+        {/* Ritual Cards — staggered slide up with gold top border */}
         <div
           style={{
             display: 'flex',
@@ -254,9 +294,11 @@ export default function RevealScreen({ result, onReset, cooldown }) {
           />
         </div>
 
-        {/* Closing thought */}
+        {/* Closing thought — fades in last */}
         <motion.p
-          {...fadeUp(1.0)}
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 1.05, ease: [0.25, 0.1, 0.25, 1] }}
           style={{
             fontFamily: "'Cormorant Garamond', serif",
             fontStyle: 'italic',
@@ -274,7 +316,7 @@ export default function RevealScreen({ result, onReset, cooldown }) {
         <motion.div
           initial={{ scaleX: 0, opacity: 0 }}
           animate={{ scaleX: 1, opacity: 1 }}
-          transition={{ duration: 0.8, delay: 1.1 }}
+          transition={{ duration: 0.8, delay: 1.2 }}
           style={{
             width: '100%',
             height: 1,

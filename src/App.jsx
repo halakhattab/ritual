@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import Wordmark from './components/Wordmark'
 import ProgressDots from './components/ProgressDots'
@@ -9,16 +9,37 @@ const MOODS = ['Energized', 'Calm', 'Foggy', 'Motivated', 'Anxious', 'Tired']
 const NEEDS = ['Clarity', 'Rest', 'Momentum', 'Connection', 'Courage', 'Joy']
 const COOLDOWN_DURATION = 30
 
+const MOOD_ICONS = {
+  Energized: '↑',
+  Calm: '○',
+  Foggy: '≈',
+  Motivated: '↗',
+  Anxious: '◌',
+  Tired: '◡',
+}
+
+const NEED_ICONS = {
+  Clarity: '✦',
+  Rest: '◎',
+  Momentum: '→',
+  Connection: '◇',
+  Courage: '▲',
+  Joy: '☀',
+}
+
 // Slide variants — direction 1 = forward, -1 = back
+// Exiting screen blurs out; entering screen starts sharp
 const slideVariants = {
   enter: (dir) => ({
     x: dir > 0 ? '60px' : '-60px',
     opacity: 0,
+    filter: 'blur(0px)',
   }),
-  center: { x: 0, opacity: 1 },
+  center: { x: 0, opacity: 1, filter: 'blur(0px)' },
   exit: (dir) => ({
     x: dir > 0 ? '-60px' : '60px',
     opacity: 0,
+    filter: 'blur(4px)',
   }),
 }
 
@@ -28,24 +49,13 @@ const fadeUp = (delay = 0) => ({
   transition: { duration: 0.55, delay, ease: [0.25, 0.1, 0.25, 1] },
 })
 
-function PillButton({ label, selected, onClick }) {
+function PillButton({ label, selected, onClick, icon }) {
   return (
-    <button
+    <motion.button
       onClick={onClick}
-      style={{
-        padding: '12px 24px',
-        border: selected ? '1.5px solid #9B7540' : '1.5px solid #3A353040',
-        background: selected ? '#9B754012' : 'transparent',
-        color: selected ? '#9B7540' : '#3A3530',
-        fontFamily: "'DM Sans', sans-serif",
-        fontSize: '0.92rem',
-        fontWeight: 400,
-        letterSpacing: '0.01em',
-        cursor: 'pointer',
-        borderRadius: 3,
-        transition: 'all 0.18s ease',
-        whiteSpace: 'nowrap',
-      }}
+      animate={{ scale: selected ? [1, 1.08, 1] : 1 }}
+      transition={{ scale: { duration: 0.25, ease: 'easeOut' } }}
+      whileHover={{ boxShadow: '0 0 12px rgba(155, 117, 64, 0.25)' }}
       onMouseEnter={(e) => {
         if (!selected) {
           e.currentTarget.style.borderColor = '#9B754080'
@@ -58,13 +68,43 @@ function PillButton({ label, selected, onClick }) {
           e.currentTarget.style.color = '#3A3530'
         }
       }}
+      style={{
+        padding: '12px 24px',
+        border: selected ? '1.5px solid #9B7540' : '1.5px solid #3A353040',
+        background: selected ? '#9B7540' : 'transparent',
+        color: selected ? '#F2EDE4' : '#3A3530',
+        fontFamily: "'DM Sans', sans-serif",
+        fontSize: '0.92rem',
+        fontWeight: 400,
+        letterSpacing: '0.01em',
+        cursor: 'pointer',
+        borderRadius: 3,
+        transition: 'background 0.18s ease, border-color 0.18s ease, color 0.18s ease',
+        whiteSpace: 'nowrap',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+      }}
     >
+      {icon && (
+        <span
+          style={{
+            fontSize: 16,
+            lineHeight: 1,
+            display: 'inline-block',
+            opacity: selected ? 1 : 0.7,
+            transition: 'opacity 0.18s ease',
+          }}
+        >
+          {icon}
+        </span>
+      )}
       {label}
-    </button>
+    </motion.button>
   )
 }
 
-function QuestionLayout({ step, direction, question, subtitle, children, topExtra }) {
+function QuestionLayout({ step, direction, question, subtitle, children }) {
   return (
     <motion.div
       key={`step-${step}`}
@@ -154,10 +194,13 @@ export default function App() {
   const [direction, setDirection] = useState(1)
   const [mood, setMood] = useState(null)
   const [weighing, setWeighing] = useState('')
+  const [weighingFocused, setWeighingFocused] = useState(false)
   const [need, setNeed] = useState(null)
   const [result, setResult] = useState(null)
   const [cooldown, setCooldown] = useState(0)
   const [error, setError] = useState(null)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const cursorGlowRef = useRef(null)
 
   // Init cooldown from localStorage
   useEffect(() => {
@@ -176,6 +219,17 @@ export default function App() {
     return () => clearTimeout(t)
   }, [cooldown])
 
+  // Cursor glow — update via DOM ref to avoid re-renders on every mousemove
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (cursorGlowRef.current) {
+        cursorGlowRef.current.style.transform = `translate(${e.clientX - 100}px, ${e.clientY - 100}px)`
+      }
+    }
+    window.addEventListener('mousemove', handleMouseMove)
+    return () => window.removeEventListener('mousemove', handleMouseMove)
+  }, [])
+
   const goTo = (s, dir = 1) => {
     setDirection(dir)
     setStep(s)
@@ -184,6 +238,7 @@ export default function App() {
   const generateIntention = async () => {
     if (cooldown > 0) return
     setError(null)
+    setIsGenerating(true)
     goTo('loading', 1)
 
     const content = `You are a warm, wise wellness guide. Based on the following about someone's day, generate:
@@ -240,6 +295,8 @@ Respond ONLY in this exact JSON format, no preamble, no markdown:
       console.error(err)
       setError(err.message || 'Something went wrong. Please try again.')
       goTo(3, -1)
+    } finally {
+      setIsGenerating(false)
     }
   }
 
@@ -250,8 +307,11 @@ Respond ONLY in this exact JSON format, no preamble, no markdown:
     setNeed(null)
     setResult(null)
     setError(null)
+    setIsGenerating(false)
     setStep(1)
   }
+
+  const isActive = need && cooldown === 0
 
   return (
     <div
@@ -262,6 +322,23 @@ Respond ONLY in this exact JSON format, no preamble, no markdown:
         overflow: 'hidden',
       }}
     >
+      {/* Cursor glow — follows mouse, no React re-renders */}
+      <div
+        ref={cursorGlowRef}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: 200,
+          height: 200,
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(155,117,64,0.06) 0%, transparent 70%)',
+          pointerEvents: 'none',
+          zIndex: 9999,
+          willChange: 'transform',
+        }}
+      />
+
       <AnimatePresence mode="wait" custom={direction}>
         {/* ─── STEP 1: Mood ─── */}
         {step === 1 && (
@@ -271,7 +348,6 @@ Respond ONLY in this exact JSON format, no preamble, no markdown:
             direction={direction}
             question="How are you arriving today?"
           >
-            {/* Staggered pills */}
             <div
               style={{
                 display: 'flex',
@@ -291,6 +367,7 @@ Respond ONLY in this exact JSON format, no preamble, no markdown:
                     label={m}
                     selected={mood === m}
                     onClick={() => setMood(m)}
+                    icon={MOOD_ICONS[m]}
                   />
                 </motion.div>
               ))}
@@ -340,30 +417,67 @@ Respond ONLY in this exact JSON format, no preamble, no markdown:
             question="What is weighing on you right now?"
             subtitle="Optional — take your time, or skip entirely."
           >
-            <textarea
-              value={weighing}
-              onChange={(e) => setWeighing(e.target.value)}
-              placeholder="A deadline, a conversation, a feeling…"
-              rows={3}
-              style={{
-                width: '100%',
-                maxWidth: 480,
-                background: 'transparent',
-                border: 'none',
-                borderBottom: '1px solid #3A353050',
-                padding: '12px 0',
-                fontFamily: "'Cormorant Garamond', serif",
-                fontSize: '1.3rem',
-                fontStyle: 'italic',
-                color: '#0D0B08',
-                resize: 'none',
-                outline: 'none',
-                lineHeight: 1.5,
-                transition: 'border-color 0.2s',
-              }}
-              onFocus={(e) => (e.target.style.borderColor = '#9B7540')}
-              onBlur={(e) => (e.target.style.borderColor = '#3A353050')}
-            />
+            {/* Textarea with animated gold underline and character count */}
+            <div style={{ position: 'relative', width: '100%', maxWidth: 480 }}>
+              <textarea
+                value={weighing}
+                onChange={(e) => setWeighing(e.target.value)}
+                onFocus={() => setWeighingFocused(true)}
+                onBlur={() => setWeighingFocused(false)}
+                placeholder="A deadline, a conversation, a feeling…"
+                rows={3}
+                style={{
+                  width: '100%',
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: '1px solid #3A353050',
+                  padding: '12px 0',
+                  paddingBottom: '20px',
+                  fontFamily: "'Cormorant Garamond', serif",
+                  fontSize: '1.3rem',
+                  fontStyle: 'italic',
+                  color: '#0D0B08',
+                  resize: 'none',
+                  outline: 'none',
+                  lineHeight: 1.5,
+                }}
+              />
+              {/* Animated gold underline — grows left to right on focus */}
+              <motion.div
+                animate={{ scaleX: weighingFocused ? 1 : 0 }}
+                initial={{ scaleX: 0 }}
+                transition={{ duration: 0.3, ease: 'easeInOut' }}
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: 1,
+                  background: '#9B7540',
+                  transformOrigin: 'left',
+                  pointerEvents: 'none',
+                }}
+              />
+              {/* Character count — appears only when typing */}
+              {weighing.length > 0 && (
+                <motion.span
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  style={{
+                    position: 'absolute',
+                    bottom: 4,
+                    right: 0,
+                    fontSize: '0.72rem',
+                    color: '#9B7540',
+                    fontFamily: "'DM Sans', sans-serif",
+                    letterSpacing: '0.02em',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  {weighing.length}
+                </motion.span>
+              )}
+            </div>
 
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
               <button
@@ -461,6 +575,7 @@ Respond ONLY in this exact JSON format, no preamble, no markdown:
                     label={n}
                     selected={need === n}
                     onClick={() => setNeed(n)}
+                    icon={NEED_ICONS[n]}
                   />
                 </motion.div>
               ))}
@@ -483,40 +598,55 @@ Respond ONLY in this exact JSON format, no preamble, no markdown:
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+              {/* Generate button — shimmer on hover, "Crafting…" text while loading */}
               <button
                 onClick={generateIntention}
                 disabled={!need || cooldown > 0}
+                className={isActive ? 'btn-shimmer' : ''}
                 style={{
                   fontFamily: "'DM Sans', sans-serif",
                   fontSize: '0.8rem',
                   fontWeight: 500,
                   letterSpacing: '0.14em',
                   textTransform: 'uppercase',
-                  color: need && cooldown === 0 ? '#F2EDE4' : '#9B7540',
-                  background: need && cooldown === 0 ? '#9B7540' : 'transparent',
-                  border: `1px solid ${need && cooldown === 0 ? '#9B7540' : '#9B754050'}`,
+                  color: isActive ? '#F2EDE4' : '#9B7540',
+                  background: isActive ? '#9B7540' : 'transparent',
+                  border: `1px solid ${isActive ? '#9B7540' : '#9B754050'}`,
                   padding: '14px 40px',
-                  cursor: need && cooldown === 0 ? 'pointer' : 'default',
+                  cursor: isActive ? 'pointer' : 'default',
                   borderRadius: 3,
-                  transition: 'all 0.25s ease',
+                  transition: 'background 0.25s ease, border-color 0.25s ease',
                   opacity: need ? 1 : 0.5,
+                  position: 'relative',
+                  overflow: 'hidden',
+                  minWidth: 220,
                 }}
                 onMouseEnter={(e) => {
-                  if (need && cooldown === 0) {
+                  if (isActive) {
                     e.currentTarget.style.background = '#7D5E32'
                     e.currentTarget.style.borderColor = '#7D5E32'
                   }
                 }}
                 onMouseLeave={(e) => {
-                  if (need && cooldown === 0) {
+                  if (isActive) {
                     e.currentTarget.style.background = '#9B7540'
                     e.currentTarget.style.borderColor = '#9B7540'
                   }
                 }}
               >
-                {cooldown > 0
-                  ? `Wait ${cooldown}s`
-                  : 'Generate my intention'}
+                {isGenerating ? (
+                  <motion.span
+                    animate={{ opacity: [1, 0.45, 1] }}
+                    transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+                    style={{ display: 'inline-block' }}
+                  >
+                    Crafting your intention…
+                  </motion.span>
+                ) : cooldown > 0 ? (
+                  `Wait ${cooldown}s`
+                ) : (
+                  'Generate my intention'
+                )}
               </button>
 
               {/* Back */}
